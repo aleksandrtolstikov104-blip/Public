@@ -13,13 +13,11 @@ class TestCreditRequest:
 
         response = api_manager.user_steps.credit_request(create_credit_user_request, credit_request)
 
-        assert credit_request.accountId == response.id
-        assert credit_request.amount == response.amount
-        assert credit_request.termMonths == response.termMonths
-        assert response.creditId is not None
+        assert credit_request.accountId == response.id, f"Ошибка! ID аккаунта в ответе API ({response.id}) не совпадает с запрошенным ({credit_request.accountId})"
+        assert credit_request.amount == response.amount, f"Ошибка! Сумма кредита в ответе API ({response.amount}) не совпадает с запрошенной ({credit_request.amount})"
+        assert credit_request.termMonths == response.termMonths, f"Ошибка! Срок кредита в ответе API ({response.termMonths}) не совпадает с запрошенным ({credit_request.termMonths})"
 
         credit_from_db = Credit.get_credit_by_id(db_session, response.creditId)
-        assert credit_from_db is not None, f"Кредит с id={response.creditId} не найден в БД"
         assert credit_from_db.account_id == response.id, f"Ошибка! ID аккаунта в БД: {credit_from_db.account_id}, не совпадает с ID в ответе API: {response.id}"
         assert credit_from_db.amount == response.amount, f"Ошибка. Сумма кредита в БД: {credit_request.amount}, отличается от ответа API: {response.amount} "
         assert credit_from_db.term_months == response.termMonths, f"Ошибка! Срок кредита в БД: {credit_from_db.term_months} мес., не совпадает с ответом API: {response.termMonths} мес."
@@ -30,4 +28,4 @@ class TestCreditRequest:
         api_manager.user_steps.credit_request_invalid(create_credit_user_request, credit_request)
 
         credit_from_db = Credit.get_credit_by_id(db_session, credit_request.accountId)
-        assert credit_from_db is None, f"Ошибка. Кредит с невалидной суммой {amount} был записан в БД"
+        assert credit_from_db is None, f"Ошибка! Ожидалось, что кредит не создастся, но в БД появилась запись при невалидной сумме: amount={amount}"

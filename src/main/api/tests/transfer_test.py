@@ -23,32 +23,29 @@ class TestTransferAccount:
     def test_transfer_valid(self, api_manager: ApiManager, create_user_request: CreateUserRequest, deposit_account_response: DepositAccountResponse, transfer_request: TransferRequest, db_session: Session):
         response = api_manager.user_steps.transfer(create_user_request, transfer_request)
 
-        assert transfer_request.fromAccountId == response.fromAccountId
-        assert transfer_request.toAccountId == response.toAccountId
+        assert transfer_request.fromAccountId == response.fromAccountId, f"Ошибка! fromAccountId в ответе API ({response.fromAccountId}) не совпадает с запросом ({transfer_request.fromAccountId})"
+        assert transfer_request.toAccountId == response.toAccountId, f"Ошибка! toAccountId в ответе API ({response.toAccountId}) не совпадает с запросом ({transfer_request.toAccountId})"
 
         account_to_from_db = Account.get_account_by_id(db_session, transfer_request.toAccountId)
-        assert account_to_from_db is not None, "Счет-получатель не найден в БД"
-        assert account_to_from_db.balance == transfer_request.amount, "Баланс получателя в БД не верный"
+        assert account_to_from_db.id == transfer_request.toAccountId, f"Ошибка! Счет-получатель с id={transfer_request.toAccountId} не найден в БД"
+        assert account_to_from_db.balance == transfer_request.amount, f"Ошибка! Баланс получателя в БД ({account_to_from_db.balance}) не равен переведенной сумме ({transfer_request.amount})"
+
 
         transaction_from_db = Transaction.get_last_transaction_by_from_account_id(db_session, transfer_request.fromAccountId)
-        assert transaction_from_db is not None, "Запись о транзакции не создана в БД"
-
-        assert transaction_from_db.to_account_id == transfer_request.toAccountId, "В транзакции неверный to_account_id"
-        assert transaction_from_db.from_account_id == transfer_request.fromAccountId, "В транзакции неверный from_account_id"
-        assert transaction_from_db.amount == transfer_request.amount, "В транзакции неверная сумма"
+        assert transaction_from_db.to_account_id == transfer_request.toAccountId, f"Ошибка! В транзакции БД неверный to_account_id. Ожидалось: {transfer_request.toAccountId}, Фактически: {transaction_from_db.to_account_id}"
+        assert transaction_from_db.from_account_id == transfer_request.fromAccountId, f"Ошибка! Транзакция списания для счета {transfer_request.fromAccountId} не найдена в БД"
+        assert transaction_from_db.amount == transfer_request.amount, f"Ошибка! Сумма в БД транзакций ({transaction_from_db.amount}) не совпадает с отправленной ({transfer_request.amount})"
 
 
     @pytest.mark.parametrize("amount", [-499.99, 499.99, 0, 10000.01])
     def test_transfer_account_invalid_amount(self, api_manager: ApiManager, create_user_request: CreateUserRequest, transfer_request: TransferRequest, amount: float, db_session: Session):
-        balance_from_before = Account.get_account_by_id(db_session, transfer_request.fromAccountId).balance
-        balance_to_before = Account.get_account_by_id(db_session, transfer_request.toAccountId).balance
+        balance_from_before_from_transaction_db = Account.get_account_by_id(db_session, transfer_request.fromAccountId).balance
+        balance_to_before_from_transaction_db = Account.get_account_by_id(db_session, transfer_request.toAccountId).balance
 
         transfer_request.amount = amount
         api_manager.user_steps.transfer_invalid(create_user_request, transfer_request)
 
-        db_session.expire_all()
-
-        account_from_after = Account.get_account_by_id(db_session, transfer_request.fromAccountId)
-        account_to_after = Account.get_account_by_id(db_session, transfer_request.toAccountId)
-        assert account_from_after.balance == balance_from_before, f"Ошибка! Списались деньги у отправителя при amount={amount}. Было: {balance_from_before}, Стало: {account_from_after.balance}"
-        assert account_to_after.balance == balance_to_before, f"Ошибка! Зачислились деньги получателю при amount={amount}. Было: {balance_to_before}, Стало: {account_to_after.balance}"
+        balance_from_after_from_transaction_db = Account.get_account_by_id(db_session, transfer_request.fromAccountId).balance
+        balance_to_after_from_transaction_db = Account.get_account_by_id(db_session, transfer_request.toAccountId).balance
+        assert balance_from_after_from_transaction_db == balance_from_before_from_transaction_db, f"Ошибка! Списались деньги у отправителя при невалидном переводе amount={amount}. Ожидалось: {balance_from_before_from_transaction_db}, Стало: {balance_from_after_from_transaction_db}"
+        assert balance_to_after_from_transaction_db == balance_to_before_from_transaction_db, f"Ошибка! Баланс получателя ошибочно изменился при невалидном переводе (amount={amount}). Ожидалось: {balance_to_before_from_transaction_db}, Стало: {balance_to_after_from_transaction_db}"

@@ -6,6 +6,7 @@ from src.main.api.db.models.user_table import User
 class AccountCrudDb:
     @staticmethod
     def get_account_by_id(db: Session, account_id: int) -> Account | None:
+        db.expire_all()
         return db.query(Account).filter_by(id=account_id).first()
 
     @staticmethod

@@ -15,11 +15,11 @@ class TestCreateUser:
     def test_create_user_valid(self, api_manager: ApiManager, create_user_request: CreateUserRequest, db_session: Session):
         response = api_manager.admin_steps.create_user(create_user_request)
 
-        assert create_user_request.username == response.username
-        assert create_user_request.role == response.role
+        assert response.username == create_user_request.username, f"Ошибка! Username в ответе API: {response.username} не совпадает с отправленным: {create_user_request.username}"
+        assert response.role == create_user_request.role, f"Ошибка! Роль в ответе API: {response.role} не совпадает с отправленной: {create_user_request.role}"
 
         user_from_db = User.get_user_by_username(db_session, create_user_request.username)
-        assert user_from_db.username == create_user_request.username, "Созданного пользователя нет в БД"
+        assert user_from_db.username == create_user_request.username, f"Ошибка! Username созданного пользователя отличается. В БД: {user_from_db.username}, ожидалось в API: {create_user_request.username}"
 
 
     @pytest.mark.parametrize(
@@ -42,4 +42,4 @@ class TestCreateUser:
         api_manager.admin_steps.create_invalid_user(create_user_request)
 
         user_from_db = User.get_user_by_username(db_session, create_user_request.username)
-        assert user_from_db is None, "Пользователь создан, ошибка"
+        assert user_from_db is None, f"Ошибка! Пользователь с невалидными данными (username: '{username}', password: '{password}') был ошибочно сохранен в БД"

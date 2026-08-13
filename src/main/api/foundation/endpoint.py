@@ -34,7 +34,7 @@ class Endpoint(Enum):
 
     ADMIN_DELETE_USER = EndpointConfiguration(
         request_model = None,
-        url = "/admin/users", # в конце {id}, но id берем из реквестера
+        url = "/admin/users",
         response_model = None
     )
 
